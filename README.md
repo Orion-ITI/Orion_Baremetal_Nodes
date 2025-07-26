@@ -5,5 +5,5 @@ This repository contains firmware projects for automotive Electronic Control Uni
 
 ## Project Structure
 The repository is organized into two main directories:
-- **Example**: Contains three test example projects to demonstrate basic functionality and FreeRTOS integration on the STM32 Blue Pill.
+- **Example**: Contains three test example projects to demonstrate basic functionality on the STM32 Blue Pill.
 - **Features**: Contains three projects, each implementing the core logic for one ECU (AC Control, Seat Angle Control, Blinker Control), including FreeRTOS porting and CAN communication.
