@@ -31,6 +31,17 @@ message("Build type: " ${CMAKE_BUILD_TYPE})
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)
 
+file(GLOB RTOS_SOURCES
+    "ThirdParty/FreeRTOS/*.c"
+    "ThirdParty/FreeRTOS/portable/GCC/ARM_CM3/*.c"
+    "ThirdParty/FreeRTOS/portable/MemMang/heap_4.c"
+)
+
+set(RTOS_INCLUDES
+    "ThirdParty/FreeRTOS/include"
+    "ThirdParty/FreeRTOS/portable/GCC/ARM_CM3"
+)
+
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
 
@@ -44,12 +55,12 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user sources here
+    ${RTOS_SOURCES}
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user defined include paths
+    ${RTOS_INCLUDES}
 )
 
 # Add project symbols (macros)
