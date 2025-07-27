@@ -1,0 +1,14 @@
+#include "HBLINKER_cfg.h"
+#include "HBLINKER.h"
+
+HBLINKER_strBLINKERCfg_t HBLINKER_strBLINKERCfg[HBLINKER_NUM_OF_BLINKERS] = {
+    [HBLINKER_BLINKER_TOGGLE] = {
+        .HBLINKER_GPIO_PortR = GPIOA,
+        .HBLINKER_GPIO_PinR = GPIO_PIN_1,
+        .HBLINKER_GPIO_PortL = GPIOA,
+        .HBLINKER_GPIO_PinL = GPIO_PIN_2,
+        .HBLINKER_enuBLINKERConnection = HBLINKER_enuBLINKER_INTERNAL_PULL_UP,
+        .HBLINKER_enuBLINKERDebounce = HBLINKER_enuBLINKERDebounce_ON,
+        .HBLINKER_enuMode = HBLINKER_enuMode_INTERRUPT
+    }
+};
