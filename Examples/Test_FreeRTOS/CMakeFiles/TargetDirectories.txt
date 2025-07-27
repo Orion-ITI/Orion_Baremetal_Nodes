@@ -1,0 +1,6 @@
+D:/Learning/ITI/ITI9Month/EmbeddedSystems/Projects/Orion/baremetal/Workspace/PortingFreeRTOS/CMakeFiles/PortingFreeRTOS.dir
+D:/Learning/ITI/ITI9Month/EmbeddedSystems/Projects/Orion/baremetal/Workspace/PortingFreeRTOS/CMakeFiles/edit_cache.dir
+D:/Learning/ITI/ITI9Month/EmbeddedSystems/Projects/Orion/baremetal/Workspace/PortingFreeRTOS/CMakeFiles/rebuild_cache.dir
+D:/Learning/ITI/ITI9Month/EmbeddedSystems/Projects/Orion/baremetal/Workspace/PortingFreeRTOS/cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir
+D:/Learning/ITI/ITI9Month/EmbeddedSystems/Projects/Orion/baremetal/Workspace/PortingFreeRTOS/cmake/stm32cubemx/CMakeFiles/edit_cache.dir
+D:/Learning/ITI/ITI9Month/EmbeddedSystems/Projects/Orion/baremetal/Workspace/PortingFreeRTOS/cmake/stm32cubemx/CMakeFiles/rebuild_cache.dir
