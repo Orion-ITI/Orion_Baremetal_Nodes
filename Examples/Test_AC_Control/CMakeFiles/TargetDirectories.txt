@@ -1,0 +1,6 @@
+/home/youssef/myData/work/iti/orion_gp/motor_driver/CMakeFiles/motor_driver.dir
+/home/youssef/myData/work/iti/orion_gp/motor_driver/CMakeFiles/edit_cache.dir
+/home/youssef/myData/work/iti/orion_gp/motor_driver/CMakeFiles/rebuild_cache.dir
+/home/youssef/myData/work/iti/orion_gp/motor_driver/cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir
+/home/youssef/myData/work/iti/orion_gp/motor_driver/cmake/stm32cubemx/CMakeFiles/edit_cache.dir
+/home/youssef/myData/work/iti/orion_gp/motor_driver/cmake/stm32cubemx/CMakeFiles/rebuild_cache.dir
