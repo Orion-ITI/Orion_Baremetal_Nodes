@@ -56,11 +56,13 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${RTOS_SOURCES}
+    Core/Src/ac_driver.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${RTOS_INCLUDES}
+    Core/Inc/ac_driver.h
 )
 
 # Add project symbols (macros)

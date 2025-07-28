@@ -51,6 +51,8 @@ extern "C" {
 
 /* USER CODE END EM */
 
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
@@ -59,6 +61,14 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define DIRECTION_CONTROL1_Pin GPIO_PIN_0
+#define DIRECTION_CONTROL1_GPIO_Port GPIOA
+#define DIRECTION_CONTROL2_Pin GPIO_PIN_1
+#define DIRECTION_CONTROL2_GPIO_Port GPIOA
+#define DIRECTION_CONTROL3_Pin GPIO_PIN_2
+#define DIRECTION_CONTROL3_GPIO_Port GPIOA
+#define DIRECTION_CONTROL4_Pin GPIO_PIN_3
+#define DIRECTION_CONTROL4_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 
