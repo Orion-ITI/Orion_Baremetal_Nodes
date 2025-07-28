@@ -1,6 +1,6 @@
+#include "main.h"
 #include "HBLINKER.h"
 #include "HBLINKER_cfg.h"
-#include "stm32f1xx_hal.h"
 
 extern HBLINKER_strBLINKERCfg_t HBLINKER_strBLINKERCfg[HBLINKER_NUM_OF_BLINKERS];
 
@@ -8,7 +8,13 @@ extern HBLINKER_strBLINKERCfg_t HBLINKER_strBLINKERCfg[HBLINKER_NUM_OF_BLINKERS]
 static volatile HBLINKER_enuBlinkerState_t blinker_state[HBLINKER_NUM_OF_BLINKERS] = {HBLINKER_enuBlinker_OFF};
 static volatile uint32_t last_interrupt_time[HBLINKER_NUM_OF_BLINKERS] = {0};
 static volatile uint8_t pending_debounce[HBLINKER_NUM_OF_BLINKERS] = {0};
-#define DEBOUNCE_MS 50
+
+// Non-blocking debouncing state for both modes
+static uint8_t last_pinL[HBLINKER_NUM_OF_BLINKERS] = {GPIO_PIN_SET}; // Initialize to pull-up state
+static uint8_t last_pinR[HBLINKER_NUM_OF_BLINKERS] = {GPIO_PIN_SET}; // Initialize to pull-up state
+static uint32_t last_read_time[HBLINKER_NUM_OF_BLINKERS] = {0};
+static uint8_t debounce_stable[HBLINKER_NUM_OF_BLINKERS] = {1}; // Assume stable at start
+#define DEBOUNCE_MS 20 // Single debounce period for both modes
 
 void HBLINKER_vInit(void)
 {
@@ -55,7 +61,7 @@ void HBLINKER_vInit(void)
 
 static HBLINKER_enuErrorStatus_t HBLINKER_enuGetBLINKERStateWithDebounce(GPIO_TypeDef *Copy_GPIO_PortL, uint16_t Copy_GPIO_PinL, 
                                                                          GPIO_TypeDef *Copy_GPIO_PortR, uint16_t Copy_GPIO_PinR, 
-                                                                         uint8_t *Add_u8PinValue)
+                                                                         uint8_t *Add_u8PinValue, uint8_t blinker_index)
 {
     HBLINKER_enuErrorStatus_t Ret_enuErrorStatus = HBLINKER_enuError_OK;
     
@@ -64,18 +70,22 @@ static HBLINKER_enuErrorStatus_t HBLINKER_enuGetBLINKERStateWithDebounce(GPIO_Ty
         return HBLINKER_enuError_NULL_POINTER;
     }
     
-    // Read both pins
+    // Read current pin states
     uint8_t pinL = HAL_GPIO_ReadPin(Copy_GPIO_PortL, Copy_GPIO_PinL);
     uint8_t pinR = HAL_GPIO_ReadPin(Copy_GPIO_PortR, Copy_GPIO_PinR);
-    HAL_Delay(20);
-    uint8_t pinL_second = HAL_GPIO_ReadPin(Copy_GPIO_PortL, Copy_GPIO_PinL);
-    uint8_t pinR_second = HAL_GPIO_ReadPin(Copy_GPIO_PortR, Copy_GPIO_PinR);
-    
-    if (pinL != pinL_second || pinR != pinR_second)
+    uint32_t current_time = HAL_GetTick();
+
+    // Check for state change
+    if (pinL != last_pinL[blinker_index] || pinR != last_pinR[blinker_index])
     {
+        last_pinL[blinker_index] = pinL;
+        last_pinR[blinker_index] = pinR;
+        last_read_time[blinker_index] = current_time;
+        debounce_stable[blinker_index] = 0;
         Ret_enuErrorStatus = HBLINKER_enuError_NOK;
     }
-    else
+    // Check if stable for DEBOUNCE_MS
+    else if ((current_time - last_read_time[blinker_index] >= DEBOUNCE_MS) && !debounce_stable[blinker_index])
     {
         if (pinL == GPIO_PIN_RESET && pinR == GPIO_PIN_SET)
             *Add_u8PinValue = HBLINKER_enuBlinker_RIGHT; // ON Right
@@ -83,6 +93,23 @@ static HBLINKER_enuErrorStatus_t HBLINKER_enuGetBLINKERStateWithDebounce(GPIO_Ty
             *Add_u8PinValue = HBLINKER_enuBlinker_LEFT; // ON Left
         else
             *Add_u8PinValue = HBLINKER_enuBlinker_OFF; // OFF
+        debounce_stable[blinker_index] = 1;
+        Ret_enuErrorStatus = HBLINKER_enuError_OK;
+    }
+    else if (debounce_stable[blinker_index])
+    {
+        // Return last stable state if already debounced
+        if (pinL == GPIO_PIN_RESET && pinR == GPIO_PIN_SET)
+            *Add_u8PinValue = HBLINKER_enuBlinker_RIGHT; // ON Right
+        else if (pinL == GPIO_PIN_SET && pinR == GPIO_PIN_RESET)
+            *Add_u8PinValue = HBLINKER_enuBlinker_LEFT; // ON Left
+        else
+            *Add_u8PinValue = HBLINKER_enuBlinker_OFF; // OFF
+        Ret_enuErrorStatus = HBLINKER_enuError_OK;
+    }
+    else
+    {
+        Ret_enuErrorStatus = HBLINKER_enuError_NOK;
     }
     
     return Ret_enuErrorStatus;
@@ -138,29 +165,53 @@ HBLINKER_enuErrorStatus_t HBLINKER_enuGetBLINKERState(uint8_t Copy_u8BLINKERName
 
             if (HBLINKER_strBLINKERCfg[Copy_u8BLINKERName].HBLINKER_enuBLINKERDebounce == HBLINKER_enuBLINKERDebounce_ON)
             {
-                HAL_Delay(20); // Secondary check for stability
-                uint8_t pinL_second = HAL_GPIO_ReadPin(HBLINKER_strBLINKERCfg[Copy_u8BLINKERName].HBLINKER_GPIO_PortL,
-                                                       HBLINKER_strBLINKERCfg[Copy_u8BLINKERName].HBLINKER_GPIO_PinL);
-                uint8_t pinR_second = HAL_GPIO_ReadPin(HBLINKER_strBLINKERCfg[Copy_u8BLINKERName].HBLINKER_GPIO_PortR,
-                                                       HBLINKER_strBLINKERCfg[Copy_u8BLINKERName].HBLINKER_GPIO_PinR);
-                if (pinL != pinL_second || pinR != pinR_second)
+                // Non-blocking debounce
+                if (pinL != last_pinL[Copy_u8BLINKERName] || pinR != last_pinR[Copy_u8BLINKERName])
+                {
+                    last_pinL[Copy_u8BLINKERName] = pinL;
+                    last_pinR[Copy_u8BLINKERName] = pinR;
+                    last_read_time[Copy_u8BLINKERName] = HAL_GetTick();
+                    debounce_stable[Copy_u8BLINKERName] = 0;
+                    Ret_enuErrorStatus = HBLINKER_enuError_NOK;
+                }
+                else if ((HAL_GetTick() - last_read_time[Copy_u8BLINKERName] >= DEBOUNCE_MS) && 
+                         !debounce_stable[Copy_u8BLINKERName])
+                {
+                    if (pinL == GPIO_PIN_RESET && pinR == GPIO_PIN_SET)
+                    {
+                        blinker_state[Copy_u8BLINKERName] = HBLINKER_enuBlinker_RIGHT;
+                    }
+                    else if (pinL == GPIO_PIN_SET && pinR == GPIO_PIN_RESET)
+                    {
+                        blinker_state[Copy_u8BLINKERName] = HBLINKER_enuBlinker_LEFT;
+                    }
+                    else
+                    {
+                        blinker_state[Copy_u8BLINKERName] = HBLINKER_enuBlinker_OFF;
+                    }
+                    debounce_stable[Copy_u8BLINKERName] = 1;
+                    Ret_enuErrorStatus = HBLINKER_enuError_OK;
+                }
+                else
                 {
                     Ret_enuErrorStatus = HBLINKER_enuError_NOK;
-                    return Ret_enuErrorStatus;
                 }
-            }
-
-            if (pinL == GPIO_PIN_RESET && pinR == GPIO_PIN_SET)
-            {
-                blinker_state[Copy_u8BLINKERName] = HBLINKER_enuBlinker_RIGHT;
-            }
-            else if (pinL == GPIO_PIN_SET && pinR == GPIO_PIN_RESET)
-            {
-                blinker_state[Copy_u8BLINKERName] = HBLINKER_enuBlinker_LEFT;
             }
             else
             {
-                blinker_state[Copy_u8BLINKERName] = HBLINKER_enuBlinker_OFF;
+                if (pinL == GPIO_PIN_RESET && pinR == GPIO_PIN_SET)
+                {
+                    blinker_state[Copy_u8BLINKERName] = HBLINKER_enuBlinker_RIGHT;
+                }
+                else if (pinL == GPIO_PIN_SET && pinR == GPIO_PIN_RESET)
+                {
+                    blinker_state[Copy_u8BLINKERName] = HBLINKER_enuBlinker_LEFT;
+                }
+                else
+                {
+                    blinker_state[Copy_u8BLINKERName] = HBLINKER_enuBlinker_OFF;
+                }
+                Ret_enuErrorStatus = HBLINKER_enuError_OK;
             }
             pending_debounce[Copy_u8BLINKERName] = 0; // Clear debounce flag
         }
@@ -179,7 +230,7 @@ HBLINKER_enuErrorStatus_t HBLINKER_enuGetBLINKERState(uint8_t Copy_u8BLINKERName
         {
             Ret_enuErrorStatus = HBLINKER_enuGetBLINKERStateWithDebounce(Loc_GPIO_PortL, Loc_GPIO_PinL, 
                                                                          Loc_GPIO_PortR, Loc_GPIO_PinR, 
-                                                                         Add_u8State);
+                                                                         Add_u8State, Copy_u8BLINKERName);
         }
         else
         {
