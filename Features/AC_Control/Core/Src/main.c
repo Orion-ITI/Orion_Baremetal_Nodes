@@ -66,8 +66,8 @@ void CAN_Init_Filter(void)
   sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
   // filtring only the motor message
   // Set ID: 0x450 << 5 = 0x8A00 → High = 0x0000, Low = 0x8A00
-  sFilterConfig.FilterIdHigh = 0x0000;
-  sFilterConfig.FilterIdLow  = 0x8A00;
+  sFilterConfig.FilterIdHigh = 0x8A00;
+  sFilterConfig.FilterIdLow  = 0x0000;
   // Mask: Match only the 11-bit Std ID → Mask is 0xFFE0
   sFilterConfig.FilterMaskIdHigh = 0x0000;
   sFilterConfig.FilterMaskIdLow  = 0xFFE0;
