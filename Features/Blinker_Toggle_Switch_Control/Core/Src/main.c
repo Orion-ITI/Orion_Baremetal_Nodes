@@ -32,7 +32,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define TOGGLE_INTERVAL_MS 500
+//#define TOGGLE_INTERVAL_MS 500
 #define POLLING_INTERVAL_MS 5 // Poll every 5ms to allow debouncing
 
 /* USER CODE END PD */
@@ -108,7 +108,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   HBLINKER_vInit(); // Initialize the blinker driver (configures PA1, PA2)
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET); // LED off (active low)
+  //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET); // LED off (active low)
 
   Loc_xTaskStatus = xTaskCreate(&Main_vBlinkerSwitchCANTask, "BlinkerSwitchCANTask", 200UL, NULL, 0UL, &Main_xBlinkerSwitchCANTaskHandle);
   configASSERT(Loc_xTaskStatus == pdPASS);
@@ -226,7 +226,7 @@ static void MX_CAN_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  //GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
@@ -234,21 +234,21 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
 
-  __HAL_RCC_GPIOC_CLK_ENABLE();
+  //__HAL_RCC_GPIOC_CLK_ENABLE();
 
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
 
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+  //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PC13 */
 
-  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  /*GPIO_InitStruct.Pin = GPIO_PIN_13;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);*/
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -274,23 +274,26 @@ void Main_vBlinkerSwitchCANTask(void *Copy_pvParams){
             if (blinker_state == HBLINKER_enuBlinker_RIGHT) // RIGHT
             {
                 CAN_Tx(HBLINKER_enuBlinker_RIGHT);
-                if (current_time - last_toggle_time >= TOGGLE_INTERVAL_MS)
+
+                /*if (current_time - last_toggle_time >= TOGGLE_INTERVAL_MS)
                 {
                     led_state = !led_state;
                     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, led_state ? GPIO_PIN_RESET : GPIO_PIN_SET);
                     last_toggle_time = current_time;
-                }
+                }*/
             }
             else if (blinker_state == HBLINKER_enuBlinker_LEFT) // LEFT
             {
                 CAN_Tx(HBLINKER_enuBlinker_LEFT);
-                HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET); // LED on (active low)
+
+                //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET); // LED on (active low)
 
             }
             else // OFF
             {
                 CAN_Tx(HBLINKER_enuBlinker_OFF);
-                HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET); // LED off (active low)
+
+                //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET); // LED off (active low)
 
             }
         }
