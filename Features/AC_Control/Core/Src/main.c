@@ -41,13 +41,21 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+
+/* USER CODE BEGIN PV */
+
+static TaskHandle_t MotorControlTaskHandle = NULL;
+
+#define PACK_MOTOR_COMMAND(id, dir, spd)   (((id & 0xFF) << 16) | ((dir & 0xFF) << 8) | (spd & 0xFF))
+#define UNPACK_MOTOR_ID(val)               ((uint8_t)((val >> 16) & 0xFF))
+#define UNPACK_DIRECTION(val)              ((uint8_t)((val >> 8) & 0xFF))
+#define UNPACK_SPEED(val)                  ((uint8_t)(val & 0xFF))
+
 CAN_HandleTypeDef hcan;
 
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart3;
-
-/* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
 
@@ -58,33 +66,13 @@ static void MX_TIM3_Init(void);
 static void MX_CAN_Init(void);
 static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
-void CAN_Init_Filter(void)
-{
-  CAN_FilterTypeDef sFilterConfig;
-  sFilterConfig.FilterBank = 0;
-  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-  // filtring only the motor message
-  // Set ID: 0x450 << 5 = 0x8A00 → High = 0x0000, Low = 0x8A00
-  sFilterConfig.FilterIdHigh = 0x8A00;
-  sFilterConfig.FilterIdLow  = 0x0000;
-  // Mask: Match only the 11-bit Std ID → Mask is 0xFFE0
-  sFilterConfig.FilterMaskIdHigh = 0x0000;
-  sFilterConfig.FilterMaskIdLow  = 0xFFE0;
-  sFilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
-  sFilterConfig.FilterActivation = ENABLE;
-  sFilterConfig.SlaveStartFilterBank = 14;
 
-  if (HAL_CAN_ConfigFilter(&hcan, &sFilterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+void MotorControlTask(void *Copy_pvParams);
+void CAN_Init_Filter(void);
 /* USER CODE END 0 */
 
 /**
@@ -95,6 +83,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+  BaseType_t Loc_xTaskStatus = pdFAIL;
 
   /* USER CODE END 1 */
 
@@ -122,12 +111,17 @@ int main(void)
   HAL_NVIC_EnableIRQ(CAN1_RX0_IRQn);
   MX_CAN_Init();
   MX_USART3_UART_Init();
+
   /* USER CODE BEGIN 2 */
   Motor_Init();
   CAN_Init_Filter(); 
   HAL_CAN_Start(&hcan);  
   HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
   HAL_UART_Transmit(&huart3, (uint8_t*)"CAN RX Ready\r\n", 14, HAL_MAX_DELAY);
+
+  Loc_xTaskStatus = xTaskCreate(&MotorControlTask, "ACTask", 100UL, NULL, 1UL, &MotorControlTaskHandle);
+  configASSERT(Loc_xTaskStatus == pdPASS);
+  vTaskStartScheduler();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -342,23 +336,76 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
-{
-  CAN_RxHeaderTypeDef RxHeader;
-  uint8_t RxData[8];
-  
-  if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
-    {
-        // Check that we have at least 3 bytes
-        if (RxHeader.DLC >= 3) {
-            uint8_t motor_id = RxData[0];
-            uint8_t direction = RxData[1];
-            uint8_t speed = RxData[2];
 
-            // Clamp speed if needed
+void CAN_Init_Filter(void)
+{
+  CAN_FilterTypeDef sFilterConfig;
+  sFilterConfig.FilterBank = 0;
+  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+  // filtring only the motor message
+  // Set ID: 0x450 << 5 = 0x8A00 → High = 0x0000, Low = 0x8A00
+  sFilterConfig.FilterIdHigh = 0x0000;
+  sFilterConfig.FilterIdLow  = 0x0000;
+  // Mask: Match only the 11-bit Std ID → Mask is 0xFFE0
+  sFilterConfig.FilterMaskIdHigh = 0x0000;
+  sFilterConfig.FilterMaskIdLow  = 0x0000;
+  sFilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+  sFilterConfig.FilterActivation = ENABLE;
+  sFilterConfig.SlaveStartFilterBank = 14;
+
+  if (HAL_CAN_ConfigFilter(&hcan, &sFilterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+// void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+// {
+//   CAN_RxHeaderTypeDef RxHeader;
+//   uint8_t RxData[8];
+  
+//   if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
+//     {
+//         // Check that we have at least 3 bytes
+//         if (RxHeader.DLC >= 3) {
+//             uint8_t motor_id = RxData[0];
+//             uint8_t direction = RxData[1];
+//             uint8_t speed = RxData[2];
+
+//             // Clamp speed if needed
+//             if (speed > 100) speed = 100;
+
+//             // Call appropriate motor driver functions
+//             if (motor_id == 0) {
+//                 MotorA_SetDirection(direction == 0 ? MOTOR_DIR_FORWARD : MOTOR_DIR_BACKWARD);
+//                 MotorA_SetSpeed(speed);
+//             } else if (motor_id == 1) {
+//                 MotorB_SetDirection(direction == 0 ? MOTOR_DIR_FORWARD : MOTOR_DIR_BACKWARD);
+//                 MotorB_SetSpeed(speed);
+//             }
+//         }
+
+//         char msg[64];
+//         snprintf(msg, sizeof(msg), "Motor %d: Dir %d, Speed %d\r\n", RxData[0], RxData[1], RxData[2]);
+//         HAL_UART_Transmit(&huart3, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+//     }
+// }
+
+void MotorControlTask(void *Copy_pvParams)
+{
+    uint32_t notificationValue;
+
+    for (;;)
+    {
+        if (xTaskNotifyWait(0, 0, &notificationValue, portMAX_DELAY) == pdPASS)
+        {
+            uint8_t motor_id = UNPACK_MOTOR_ID(notificationValue);
+            uint8_t direction = UNPACK_DIRECTION(notificationValue);
+            uint8_t speed = UNPACK_SPEED(notificationValue);
+
             if (speed > 100) speed = 100;
 
-            // Call appropriate motor driver functions
             if (motor_id == 0) {
                 MotorA_SetDirection(direction == 0 ? MOTOR_DIR_FORWARD : MOTOR_DIR_BACKWARD);
                 MotorA_SetSpeed(speed);
@@ -366,15 +413,32 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
                 MotorB_SetDirection(direction == 0 ? MOTOR_DIR_FORWARD : MOTOR_DIR_BACKWARD);
                 MotorB_SetSpeed(speed);
             }
+
+            char msg[64];
+            snprintf(msg, sizeof(msg), "Motor %d: Dir %d, Speed %d\r\n", motor_id, direction, speed);
+            HAL_UART_Transmit(&huart3, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+        }
+    }
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    CAN_RxHeaderTypeDef RxHeader;
+    uint8_t RxData[8];
+
+    if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
+    {
+        if (RxHeader.DLC >= 3)
+        {
+            uint32_t packedCmd = PACK_MOTOR_COMMAND(RxData[0], RxData[1], RxData[2]);
+            xTaskNotifyFromISR(MotorControlTaskHandle, packedCmd, eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
         }
 
-        // Optional: debug output
-        char msg[64];
-        snprintf(msg, sizeof(msg), "Motor %d: Dir %d, Speed %d\r\n", RxData[0], RxData[1], RxData[2]);
-        HAL_UART_Transmit(&huart3, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
-
 }
+
 /* USER CODE END 4 */
 
 /**
