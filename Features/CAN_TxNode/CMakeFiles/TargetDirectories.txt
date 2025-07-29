@@ -1,0 +1,6 @@
+/media/mariam/Data/Orion_GP/STM-Projects/CAN_TxNode/CMakeFiles/CAN_TxNode.dir
+/media/mariam/Data/Orion_GP/STM-Projects/CAN_TxNode/CMakeFiles/edit_cache.dir
+/media/mariam/Data/Orion_GP/STM-Projects/CAN_TxNode/CMakeFiles/rebuild_cache.dir
+/media/mariam/Data/Orion_GP/STM-Projects/CAN_TxNode/cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir
+/media/mariam/Data/Orion_GP/STM-Projects/CAN_TxNode/cmake/stm32cubemx/CMakeFiles/edit_cache.dir
+/media/mariam/Data/Orion_GP/STM-Projects/CAN_TxNode/cmake/stm32cubemx/CMakeFiles/rebuild_cache.dir
