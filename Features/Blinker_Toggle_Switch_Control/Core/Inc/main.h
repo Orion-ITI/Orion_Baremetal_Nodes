@@ -33,6 +33,8 @@ extern "C" {
 /* USER CODE BEGIN Includes */
 #include "FreeRTOS.h"
 #include "task.h"
+#include "HBLINKER.h"
+#include "HBLINKER_cfg.h"
 
 /* USER CODE END Includes */
 
