@@ -18,11 +18,10 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "ac_driver.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "ac_driver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,6 +40,11 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+CAN_HandleTypeDef hcan;
+
+TIM_HandleTypeDef htim3;
+
+UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 
@@ -51,11 +55,11 @@ static TaskHandle_t MotorControlTaskHandle = NULL;
 #define UNPACK_DIRECTION(val)              ((uint8_t)((val >> 8) & 0xFF))
 #define UNPACK_SPEED(val)                  ((uint8_t)(val & 0xFF))
 
-CAN_HandleTypeDef hcan;
+// CAN_HandleTypeDef hcan;
 
-TIM_HandleTypeDef htim3;
+// TIM_HandleTypeDef htim3;
 
-UART_HandleTypeDef huart3;
+// UART_HandleTypeDef huart3;
 
 /* USER CODE END PV */
 
@@ -104,23 +108,24 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
+  HAL_NVIC_SetPriority(CAN1_RX0_IRQn, 6, 0);
+  HAL_NVIC_EnableIRQ(CAN1_RX0_IRQn);
   MX_GPIO_Init();
   MX_TIM3_Init();
-  
-  HAL_NVIC_SetPriority(CAN1_RX0_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(CAN1_RX0_IRQn);
   MX_CAN_Init();
   MX_USART3_UART_Init();
-
   /* USER CODE BEGIN 2 */
   Motor_Init();
+  
+  Loc_xTaskStatus = xTaskCreate(&MotorControlTask, "ACTask", 100UL, NULL, 1UL, &MotorControlTaskHandle);
+  configASSERT(Loc_xTaskStatus == pdPASS);
+
+
   CAN_Init_Filter(); 
   HAL_CAN_Start(&hcan);  
   HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
   HAL_UART_Transmit(&huart3, (uint8_t*)"CAN RX Ready\r\n", 14, HAL_MAX_DELAY);
 
-  Loc_xTaskStatus = xTaskCreate(&MotorControlTask, "ACTask", 100UL, NULL, 1UL, &MotorControlTaskHandle);
-  configASSERT(Loc_xTaskStatus == pdPASS);
   vTaskStartScheduler();
   /* USER CODE END 2 */
 
@@ -360,38 +365,6 @@ void CAN_Init_Filter(void)
   }
 }
 
-// void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
-// {
-//   CAN_RxHeaderTypeDef RxHeader;
-//   uint8_t RxData[8];
-  
-//   if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
-//     {
-//         // Check that we have at least 3 bytes
-//         if (RxHeader.DLC >= 3) {
-//             uint8_t motor_id = RxData[0];
-//             uint8_t direction = RxData[1];
-//             uint8_t speed = RxData[2];
-
-//             // Clamp speed if needed
-//             if (speed > 100) speed = 100;
-
-//             // Call appropriate motor driver functions
-//             if (motor_id == 0) {
-//                 MotorA_SetDirection(direction == 0 ? MOTOR_DIR_FORWARD : MOTOR_DIR_BACKWARD);
-//                 MotorA_SetSpeed(speed);
-//             } else if (motor_id == 1) {
-//                 MotorB_SetDirection(direction == 0 ? MOTOR_DIR_FORWARD : MOTOR_DIR_BACKWARD);
-//                 MotorB_SetSpeed(speed);
-//             }
-//         }
-
-//         char msg[64];
-//         snprintf(msg, sizeof(msg), "Motor %d: Dir %d, Speed %d\r\n", RxData[0], RxData[1], RxData[2]);
-//         HAL_UART_Transmit(&huart3, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-//     }
-// }
-
 void MotorControlTask(void *Copy_pvParams)
 {
     uint32_t notificationValue;
@@ -414,9 +387,9 @@ void MotorControlTask(void *Copy_pvParams)
                 MotorB_SetSpeed(speed);
             }
 
-            char msg[64];
-            snprintf(msg, sizeof(msg), "Motor %d: Dir %d, Speed %d\r\n", motor_id, direction, speed);
-            HAL_UART_Transmit(&huart3, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+            // char msg[64];
+            // snprintf(msg, sizeof(msg), "Motor %d: Dir %d, Speed %d\r\n", motor_id, direction, speed);
+            // HAL_UART_Transmit(&huart3, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
         }
     }
 }
@@ -426,7 +399,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     CAN_RxHeaderTypeDef RxHeader;
     uint8_t RxData[8];
-
+    // HAL_UART_Transmit(&huart3, "Rx interrupt ",7, HAL_MAX_DELAY);
     if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
     {
         if (RxHeader.DLC >= 3)
