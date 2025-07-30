@@ -56,11 +56,12 @@ static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 // void CAN_Tx(void);
 
-void SendMotorCANMessage(uint8_t motor_id, uint8_t direction, uint8_t speed);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void CAN_Filter(void);
+void SendMotorCANMessage(uint8_t motor_id, uint8_t direction, uint8_t speed);
 
 /* USER CODE END 0 */
 
@@ -97,22 +98,7 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  // CAN go to normal mode
-  CAN_FilterTypeDef sFilterConfig;
-
-  sFilterConfig.FilterBank = 0;
-  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-  sFilterConfig.FilterIdHigh = 0x0000;
-  sFilterConfig.FilterIdLow = 0x0000;
-  sFilterConfig.FilterMaskIdHigh = 0x0000;
-  sFilterConfig.FilterMaskIdLow = 0x0000;
-  sFilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
-  sFilterConfig.FilterActivation = ENABLE;
-  sFilterConfig.SlaveStartFilterBank = 14;
-
-  HAL_CAN_ConfigFilter(&hcan, &sFilterConfig);
-
+  CAN_Filter();
   HAL_CAN_Start(&hcan);
 
   /* USER CODE END 2 */
@@ -125,6 +111,21 @@ int main(void)
     // CAN_Tx();
     for(int i = 0 ; i <= 100 ; i++){
       SendMotorCANMessage(0,0,i);
+      HAL_Delay(50);
+    }
+
+    for(int i = 100 ; i >= 0 ; i--){
+      SendMotorCANMessage(0,1,i);
+      HAL_Delay(50);
+    }
+
+    for(int i = 0 ; i <= 100 ; i++){
+      SendMotorCANMessage(1,0,i);
+      HAL_Delay(50);
+    }
+
+    for(int i = 100 ; i >= 10 ; i--){
+      SendMotorCANMessage(1,1,i);
       HAL_Delay(50);
     }
     /* USER CODE BEGIN 3 */
@@ -270,6 +271,25 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void CAN_Filter(void){
+  // CAN go to normal mode
+  CAN_FilterTypeDef sFilterConfig;
+
+  sFilterConfig.FilterBank = 0;
+  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+  sFilterConfig.FilterIdHigh = 0x0000;
+  sFilterConfig.FilterIdLow = 0x0000;
+  sFilterConfig.FilterMaskIdHigh = 0x0000;
+  sFilterConfig.FilterMaskIdLow = 0x0000;
+  sFilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+  sFilterConfig.FilterActivation = ENABLE;
+  sFilterConfig.SlaveStartFilterBank = 14;
+
+  HAL_CAN_ConfigFilter(&hcan, &sFilterConfig);
+}
+
 CAN_TxHeaderTypeDef TxHeader;
 uint8_t TxData[8];  // Can send up to 8 bytes
 uint32_t TxMailbox;
