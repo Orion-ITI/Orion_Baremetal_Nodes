@@ -48,9 +48,9 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-static TaskHandle_t Main_xLedTaskHandle = NULL;
-static TaskHandle_t Main_xSwitchTaskHandle = NULL;
-
+//static TaskHandle_t Main_xLedTaskHandle = NULL;
+//static TaskHandle_t Main_xSwitchTaskHandle = NULL;
+static TaskHandle_t Main_xServoTaskHandle = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -59,11 +59,31 @@ static void MX_GPIO_Init(void);
 static void MX_CAN_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_USART2_UART_Init(void);
+
+void CAN_Init_Filter(void)
+{
+  CAN_FilterTypeDef sFilterConfig;
+  sFilterConfig.FilterBank = 0;
+  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+  sFilterConfig.FilterIdHigh = 0x123 << 5;  // Standard ID left-aligned in 32-bit register
+  sFilterConfig.FilterIdLow = 0x0000;
+  sFilterConfig.FilterMaskIdHigh = 0x1FFF << 5;  // Check all 11 bits of STD ID
+  sFilterConfig.FilterMaskIdLow = 0x0000;
+  sFilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+  sFilterConfig.FilterActivation = ENABLE;
+  sFilterConfig.SlaveStartFilterBank = 14;
+
+  if (HAL_CAN_ConfigFilter(&hcan, &sFilterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
 /* USER CODE BEGIN PFP */
 
-void Main_vLedTask(void *Copy_pvParams);
-void Main_vSwitchTask(void *Copy_pvParams);
-
+//void Main_vLedTask(void *Copy_pvParams);
+//void Main_vSwitchTask(void *Copy_pvParams);
+void Main_vServoTask(void *Copy_pvParams);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -101,18 +121,28 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+   HAL_NVIC_SetPriority(CAN1_RX0_IRQn, 6, 0);
+  HAL_NVIC_EnableIRQ(CAN1_RX0_IRQn);
   MX_CAN_Init();
   MX_TIM2_Init();
   MX_USART2_UART_Init();
-  /* USER CODE BEGIN 2 */
-  Loc_xTaskStatus = xTaskCreate(&Main_vLedTask, "LedTask", 100UL, NULL, 1UL, &Main_xLedTaskHandle);
-  configASSERT(Loc_xTaskStatus == pdPASS);
-
-  Loc_xTaskStatus = xTaskCreate(&Main_vSwitchTask, "SwitchTask", 100UL, NULL, 0UL, &Main_xSwitchTaskHandle);
-  configASSERT(Loc_xTaskStatus == pdPASS);
-
-  vTaskStartScheduler();
+  CAN_Init_Filter(); 
+  HAL_CAN_Start(&hcan);  
+  HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
+  HAL_UART_Transmit(&huart2, (uint8_t*)"CAN RX Ready\r\n", 14, HAL_MAX_DELAY);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+  
+
+  /* USER CODE BEGIN 2 */
+   // Loc_xTaskStatus = xTaskCreate(&Main_vLedTask, "LedTask", 100UL, NULL, 1UL, &Main_xLedTaskHandle);
+   // configASSERT(Loc_xTaskStatus == pdPASS);
+
+   // Loc_xTaskStatus = xTaskCreate(&Main_vSwitchTask, "SwitchTask", 100UL, NULL, 0UL, &Main_xSwitchTaskHandle);
+  //configASSERT(Loc_xTaskStatus == pdPASS);
+   Loc_xTaskStatus = xTaskCreate(&Main_vServoTask, "ServoTask", 100UL, NULL, 1UL, &Main_xServoTaskHandle);
+   configASSERT(Loc_xTaskStatus == pdPASS);
+  vTaskStartScheduler();
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -338,7 +368,23 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void Main_vLedTask(void *Copy_pvParams)
+void Main_vServoTask(void *Copy_pvParams)
+{
+  uint32_t Loc_u32ServoAngle = 90;  // Default angle
+
+  for (;;)
+  {
+    // Wait for angle notification from ISR
+    (void)xTaskNotifyWait(0UL, 0UL, &Loc_u32ServoAngle, portMAX_DELAY);
+
+    // Map 0–180° to 500–2500us pulse width
+    uint16_t Loc_u16Pulse = (Loc_u32ServoAngle * 10) / 9 + 500;
+
+    // Update PWM duty cycle
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, Loc_u16Pulse);
+  }
+}
+/*void Main_vLedTask(void *Copy_pvParams)
 {
   TickType_t Loc_xLastWakeTime;
   const TickType_t Loc_xPeriodicity = pdMS_TO_TICKS(500);
@@ -350,9 +396,9 @@ void Main_vLedTask(void *Copy_pvParams)
     HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
     vTaskDelayUntil(&Loc_xLastWakeTime, Loc_xPeriodicity);
   }
-}
+}*/
 
-void Main_vSwitchTask(void *Copy_pvParams)
+/*void Main_vSwitchTask(void *Copy_pvParams)
 {
   uint32_t Loc_u32SwitchState = (uint32_t)GPIO_PIN_RESET;
 
@@ -362,17 +408,30 @@ void Main_vSwitchTask(void *Copy_pvParams)
 
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, Loc_u32SwitchState);
   }
-}
+}*/
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+/*void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   static GPIO_PinState Main_u8SwitchState = GPIO_PIN_SET;
 
-  /* No debouncing handling */
+
   if (GPIO_PIN_11 == GPIO_Pin)
   {
     Main_u8SwitchState ^= 1U;
     xTaskNotifyFromISR(Main_xSwitchTaskHandle, Main_u8SwitchState, eSetValueWithoutOverwrite, NULL);
+  }
+}*/
+extern TaskHandle_t Main_xServoTaskHandle;
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+  CAN_RxHeaderTypeDef RxHeader;
+  uint8_t RxData[8];
+
+  if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
+  {
+    uint8_t angle = (RxData[0] - '0') * 100 + (RxData[1] - '0') * 10 + (RxData[2] - '0');
+    xTaskNotifyFromISR(Main_xServoTaskHandle, angle, eSetValueWithoutOverwrite, NULL);
   }
 }
 
