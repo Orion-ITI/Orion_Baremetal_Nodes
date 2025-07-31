@@ -122,7 +122,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-      for ( uint8_t angle = 0; angle <= 180; angle++) 
+      for ( uint8_t angle = 0; angle <= 180; angle +=30) 
       {
         CAN_Tx(angle);
         HAL_Delay(1000);

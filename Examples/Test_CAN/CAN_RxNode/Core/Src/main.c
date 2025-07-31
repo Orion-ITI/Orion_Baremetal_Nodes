@@ -333,6 +333,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
+   GPIO_InitStruct.Pin = GPIO_PIN_1;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP; // Alternate Function Push-Pull
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE END MX_GPIO_Init_2 */
 }
@@ -367,7 +371,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     if (angle > 180) angle = 180;
 
     // 5. Convert angle to PWM pulse width
-    uint32_t pulse = 999 + (angle * 1000) / 180;
+    uint32_t pulse = 1000 + (angle * 1000) / 180;
 
     // 6. Update servo position
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, pulse);
